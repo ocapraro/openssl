@@ -14,7 +14,7 @@ use OpenSSL::Test::Utils;
 
 setup("test_cli_list");
 
-plan tests => 2;
+plan tests => 3;
 
 ok(run(app(["openssl", "list", "-skey-managers"],
         stdout => "listout.txt")),
@@ -23,3 +23,21 @@ open DATA, "listout.txt";
 my @match = grep /secret key/, <DATA>;
 close DATA;
 ok(scalar @match > 1 ? 1 : 0, "Several skey managers are listed - default configuration");
+
+# Check keymanagers against disabled algos
+my @disabled = run(app(["openssl", "list", "-disabled"]), capture => 1);
+my @keymanagers = run(app(["openssl", "list", "-key-managers"]), capture => 1);
+
+chomp @disabled;
+chomp @keymanagers;
+
+my $ok = 1;
+foreach my $manager (@keymanagers) {
+    foreach my $alg (@disabled) {
+        if ($manager =~ /\b\Q$alg\E\b/) {
+            $ok = 0;
+        }
+    }
+}
+
+ok($ok, "Disabled algorithms are not listed in key managers");
